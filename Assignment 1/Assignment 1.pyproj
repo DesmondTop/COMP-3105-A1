@@ -4,13 +4,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>38b3debe-2df0-4acd-a8f2-f7553bd5cb0c</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>A1codes.py</StartupFile>
+    <StartupFile>A1testbed.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>Assignment 1</Name>
     <RootNamespace>Assignment 1</RootNamespace>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
