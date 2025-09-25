@@ -1,7 +1,8 @@
 ﻿import numpy as np
-import cvxopt
 from cvxopt import matrix, solvers
+import csv
 import os
+import xlrd
 
 def minimizeL2(X, y):
     """
@@ -119,7 +120,7 @@ def synRegExperiments():
     train_loss = np.zeros((n_runs, 2, 2))  # n_runs x n_models x n_metrics
     test_loss = np.zeros((n_runs, 2, 2))   # n_runs x n_models x n_metrics
 
-    np.random.seed(42)  # Use a fixed seed for reproducibility
+    np.random.seed(101234289)  # Use a fixed seed for reproducibility
 
     for r in range(n_runs):
         w_true = np.random.randn(d + 1, 1)
@@ -152,13 +153,13 @@ def synRegExperiments():
 
     return avg_train_loss, avg_test_loss
 
-def preprocessCCS(dataset_folder):
+def preprocessCCS(dataset_folder=None):
     """
-    Loads and preprocesses the CCS dataset.
+    Loads and preprocesses the CCS dataset without pandas.
 
     Parameters:
-    dataset_folder : str
-        Absolute path to the folder containing Concrete_Data.xls
+    dataset_folder : str or None
+        If None, uses the current directory. Otherwise, absolute path to folder containing Concrete_Data.xls.
 
     Returns:
     X : numpy.ndarray
@@ -166,19 +167,30 @@ def preprocessCCS(dataset_folder):
     y : numpy.ndarray
         Target vector of shape (n, 1)
     """
-    import pandas as pd
 
-    # Load the dataset
-    data_path = os.path.join(dataset_folder, "Concrete_Data.xls")
-    df = pd.read_excel(data_path)
+    # Use current directory if no folder is specified
+    if dataset_folder is None:
+        data_path = "Concrete_Data.xls"
+    else:
+        data_path = os.path.join(dataset_folder, "Concrete_Data.xls")
 
-    # Last column is the target
-    X = df.iloc[:, :-1].values
-    y = df.iloc[:, -1].values.reshape(-1, 1)
+    # Open the workbook and select the first sheet
+    wb = xlrd.open_workbook(data_path)
+    sheet = wb.sheet_by_index(0)
+
+    # Read all rows, skip header (row 0)
+    data = []
+    for row_idx in range(1, sheet.nrows):
+        row = sheet.row_values(row_idx)
+        data.append(row)
+
+    data = np.array(data, dtype=float)
+    X = data[:, :-1]
+    y = data[:, -1].reshape(-1, 1)
 
     return X, y
 
-def runCCS(dataset_folder):
+def runCCS(dataset_folder=None):
     """
     Runs regression experiments on the CCS dataset.
 
@@ -239,6 +251,74 @@ def runCCS(dataset_folder):
 
     return avg_train_loss, avg_test_loss
 
+
+def test_toy_regression():
+    """
+    Loads toy regression data from toy_data folder, fits L2 and Linf models, and prints losses in table format.
+    """
+    # Use correct relative path to toy_data folder
+    toy_folder = "../toy_data"
+    train_path = os.path.join(toy_folder, "regression_train.csv")
+    test_path = os.path.join(toy_folder, "regression_test.csv")
+
+    # Load and augment training data
+    with open(train_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header
+        train_data = [row for row in reader]
+    train_data = np.array(train_data, dtype=float)
+    X_train = train_data[:, :-1]
+    y_train = train_data[:, -1].reshape(-1, 1)
+    X_train = np.concatenate((np.ones((X_train.shape[0], 1)), X_train), axis=1)
+
+    # Load and augment test data
+    with open(test_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader)  # Skip header
+        test_data = [row for row in reader]
+    test_data = np.array(test_data, dtype=float)
+    X_test = test_data[:, :-1]
+    y_test = test_data[:, -1].reshape(-1, 1)
+    X_test = np.concatenate((np.ones((X_test.shape[0], 1)), X_test), axis=1)
+
+    # Fit models
+    w_L2 = minimizeL2(X_train, y_train)
+    w_Linf = minimizeLinf(X_train, y_train)
+
+    # Training losses
+    train_pred_L2 = X_train @ w_L2
+    train_pred_Linf = X_train @ w_Linf
+    train_L2_loss_L2 = np.mean((train_pred_L2 - y_train) ** 2)
+    train_Linf_loss_L2 = np.max(np.abs(train_pred_L2 - y_train))
+    train_L2_loss_Linf = np.mean((train_pred_Linf - y_train) ** 2)
+    train_Linf_loss_Linf = np.max(np.abs(train_pred_Linf - y_train))
+
+    # Test losses
+    test_pred_L2 = X_test @ w_L2
+    test_pred_Linf = X_test @ w_Linf
+    test_L2_loss_L2 = np.mean((test_pred_L2 - y_test) ** 2)
+    test_Linf_loss_L2 = np.max(np.abs(test_pred_L2 - y_test))
+    test_L2_loss_Linf = np.mean((test_pred_Linf - y_test) ** 2)
+    test_Linf_loss_Linf = np.max(np.abs(test_pred_Linf - y_test))
+
+    # Print model weights
+    print("\nModel weights:")
+    print("w_L2 =\n", w_L2)
+    print("w_Linf =\n", w_Linf)
+
+    # Print results in table format
+    print("\nTable 1: Training losses")
+    print("Model      | L2 loss      | Linf loss")
+    print(f"L2 model   | {train_L2_loss_L2:.8f} | {train_Linf_loss_L2:.8f}")
+    print(f"Linf model | {train_L2_loss_Linf:.8f} | {train_Linf_loss_Linf:.8f}")
+
+    print("\nTable 2: Test losses")
+    print("Model      | L2 loss      | Linf loss")
+    print(f"L2 model   | {test_L2_loss_L2:.8f} | {test_Linf_loss_L2:.8f}")
+    print(f"Linf model | {test_L2_loss_Linf:.8f} | {test_Linf_loss_Linf:.8f}")
+
+
+
 # quick test
 def main():
     X = np.array([[1, 2], [3, 4], [5, 6]])
@@ -259,6 +339,23 @@ def main():
     print("Average testing loss (L2, Linf):")
     print(avg_test_loss[0])
 
+    # Run toy regression testing using files in toy_data
+    print("\n--- Toy Regression File Testing ---")
+    test_toy_regression()
+
+    # Run CCS regression testing using Concrete_Data.xls
+    print("\n--- CCS Regression File Testing ---")
+    avg_train_loss, avg_test_loss = runCCS()  # No argument needed if file is in current directory
+
+    print("\nTable 3: CCS Training losses (averaged over 100 runs)")
+    print("Model      | L2 loss      | Linf loss")
+    print(f"L2 model   | {avg_train_loss[0,0]:.8f} | {avg_train_loss[0,1]:.8f}")
+    print(f"Linf model | {avg_train_loss[1,0]:.8f} | {avg_train_loss[1,1]:.8f}")
+
+    print("\nTable 4: CCS Test losses (averaged over 100 runs)")
+    print("Model      | L2 loss      | Linf loss")
+    print(f"L2 model   | {avg_test_loss[0,0]:.8f} | {avg_test_loss[0,1]:.8f}")
+    print(f"Linf model | {avg_test_loss[1,0]:.8f} | {avg_test_loss[1,1]:.8f}")
+
 if __name__ == "__main__":
     main()
-
