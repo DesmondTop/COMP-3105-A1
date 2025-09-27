@@ -3,7 +3,9 @@ from cvxopt import matrix, solvers
 import csv
 import os
 import xlrd
+import scipy
 
+#question 1
 def minimizeL2(X, y):
     """
     Solves L2 linear regression using closed-form solution:
@@ -170,7 +172,7 @@ def preprocessCCS(dataset_folder=None):
 
     # Use current directory if no folder is specified
     if dataset_folder is None:
-        data_path = "Concrete_Data.xls"
+        data_path = os.path.join(os.path.dirname(__file__), "Concrete_Data.xls")
     else:
         data_path = os.path.join(dataset_folder, "Concrete_Data.xls")
 
@@ -251,13 +253,12 @@ def runCCS(dataset_folder=None):
 
     return avg_train_loss, avg_test_loss
 
-
 def test_toy_regression():
     """
     Loads toy regression data from toy_data folder, fits L2 and Linf models, and prints losses in table format.
     """
     # Use correct relative path to toy_data folder
-    toy_folder = "../toy_data"
+    toy_folder = "toy_data"
     train_path = os.path.join(toy_folder, "regression_train.csv")
     test_path = os.path.join(toy_folder, "regression_test.csv")
 
@@ -317,6 +318,260 @@ def test_toy_regression():
     print(f"L2 model   | {test_L2_loss_L2:.8f} | {test_Linf_loss_L2:.8f}")
     print(f"Linf model | {test_L2_loss_Linf:.8f} | {test_Linf_loss_Linf:.8f}")
 
+#question 2
+#a.1
+def linearRegL2Obj(w,X,y):
+    """
+    Compute the L2 linear regression objective value.
+    
+    Args:
+        w (ndarray): d x 1 parameter vector
+        X (ndarray): n x d input matrix
+        y (ndarray): n x 1 label vector
+        
+    Returns:
+        obj_val (float): scalar objective value
+    """
+    n = X.shape[0]
+    residual = X @ w - y  # n x 1
+    obj_val = (1 / (2 * n)) * np.dot(residual.T, residual)
+    return obj_val.item()  # return scalar
+
+
+def linearRegL2Grad(w,X,y):
+    """
+    Compute the gradient of the L2 linear regression objective.
+    
+    Args:
+        w (ndarray): d x 1 parameter vector
+        X (ndarray): n x d input matrix
+        y (ndarray): n x 1 label vector
+        
+    Returns:
+        gradient (ndarray): d x 1 gradient vector
+    """
+    n = X.shape[0]
+    gradient = (1 / n) * X.T @ (X @ w - y)
+    return gradient
+
+
+#a.2
+def find_opt(obj_func, grad_func, X, y):
+    """
+    Find the optimal solution of a convex optimization problem using scipy.optimize.minimize.
+    
+    Args:
+        obj_func: function that computes the scalar objective value, takes w (d x 1), X (n x d), y (n x 1)
+        grad_func: function that computes the gradient, takes w (d x 1), X (n x d), y (n x 1)
+        X (ndarray): n x d input matrix
+        y (ndarray): n x 1 label vector
+    
+    Returns:
+        w_opt (ndarray): d x 1 optimal parameter vector
+    """
+    d = X.shape[1]
+    
+    # Initialize a random 1-D array of size d
+    w_0 = np.random.randn(d)
+    
+    # Wrapper for objective function
+    def func(w):
+        w_col = w[:, None]  # convert 1-D array to column vector
+        return obj_func(w_col, X, y)
+    
+    # Wrapper for gradient function
+    def gd(w):
+        w_col = w[:, None]
+        grad_col = grad_func(w_col, X, y)
+        return grad_col.ravel()  # convert column vector to 1-D array
+    
+    # Minimize using scipy.optimize.minimize
+    result = scipy.optimize.minimize(func, w_0, jac=gd)
+    
+    # Convert result to column vector
+    w_opt = result['x'][:, None]
+    return w_opt
+
+#b
+def sigmoid(z):
+    """
+    Numerically stable sigmoid function
+    σ(z) = 1 / (1 + exp(-z))
+    """
+    # Clip to avoid overflow/underflow
+    z = np.clip(z, -500, 500)
+    return 1 / (1 + np.exp(-z))
+
+
+def logisticRegObj(w, X, y):
+    """
+    Compute logistic regression cross-entropy loss.
+    
+    Args:
+        w (ndarray): d x 1 parameter vector
+        X (ndarray): n x d input matrix
+        y (ndarray): n x 1 label vector
+    
+    Returns:
+        obj_val (float): scalar objective value
+    """
+    n = X.shape[0]
+    z = X @ w
+    sig = sigmoid(z)
+    
+    # Clip values to avoid log(0)
+    sig = np.clip(sig, 1e-15, 1 - 1e-15)
+    
+    obj_val = ( -y.T @ np.log(sig) - (1 - y).T @ np.log(1 - sig) ) / n
+    return obj_val.item()  # return scalar
+
+
+def logisticRegGrad(w, X, y):
+    """
+    Compute gradient of logistic regression cross-entropy loss.
+    
+    Args:
+        w (ndarray): d x 1 parameter vector
+        X (ndarray): n x d input matrix
+        y (ndarray): n x 1 label vector
+    
+    Returns:
+        grad (ndarray): d x 1 gradient vector
+    """
+    n = X.shape[0]
+    z = X @ w
+    sig = sigmoid(z)
+    gradient = (X.T @ (sig - y)) / n
+    return gradient
+
+def synClsExperiments():
+
+    def genData(n_points, dim1, dim2):
+        '''
+        This function generate synthetic data
+        '''
+        c0 = np.ones([1, dim1]) # class 0 center
+        c1 = -np.ones([1, dim1]) # class 1 center
+        X0 = np.random.randn(n_points, dim1 + dim2) # class 0 input
+        X0[:, :dim1] += c0
+        X1 = np.random.randn(n_points, dim1 + dim2) # class 1 input
+        X1[:, :dim1] += c1
+        X = np.concatenate((X0, X1), axis=0)
+        X = np.concatenate((np.ones((2 * n_points, 1)), X), axis=1) # augmentation
+        y = np.concatenate([np.zeros([n_points, 1]), np.ones([n_points, 1])], axis=0)
+        return X, y
+    
+    def runClsExp(m=100, dim1=2, dim2=2):
+        '''
+        Run classification experiment with the specified arguments
+        '''
+        n_test = 1000
+        Xtrain, ytrain = genData(m, dim1, dim2)
+        Xtest, ytest = genData(n_test, dim1, dim2)
+        w_logit = find_opt(logisticRegObj, logisticRegGrad, Xtrain, ytrain)
+
+        # Predictions for train
+        ytrain_prob = sigmoid(Xtrain @ w_logit)
+        ytrain_hat = (ytrain_prob >= 0.5).astype(float)
+        train_acc = np.mean(ytrain_hat == ytrain)
+        
+        # Predictions for test
+        ytest_prob = sigmoid(Xtest @ w_logit)
+        ytest_hat = (ytest_prob >= 0.5).astype(float)
+        test_acc = np.mean(ytest_hat == ytest)
+
+        return train_acc, test_acc
+    
+    
+    n_runs = 100
+    train_acc = np.zeros([n_runs, 4, 3])
+    test_acc = np.zeros([n_runs, 4, 3])
+
+    np.random.seed(101245756)
+    for r in range(n_runs):
+        for i, m in enumerate((10, 50, 100, 200)):
+            train_acc[r, i, 0], test_acc[r, i, 0] = runClsExp(m=m)
+        for i, dim1 in enumerate((1, 2, 4, 8)):
+            train_acc[r, i, 1], test_acc[r, i, 1] = runClsExp(dim1=dim1)
+        for i, dim2 in enumerate((1, 2, 4, 8)):
+            train_acc[r, i, 2], test_acc[r, i, 2] = runClsExp(dim2=dim2)
+
+    # Compute average accuracies over runs
+    train_acc_avg = np.mean(train_acc, axis=0)
+    test_acc_avg = np.mean(test_acc, axis=0)
+    
+    return train_acc_avg, test_acc_avg
+
+
+#d.1
+def preprocessBCW(dataset_folder):
+    """
+    Load and preprocess the Breast Cancer Wisconsin dataset.
+    
+    Args:
+        dataset_folder (str): absolute path to dataset folder containing 'wdbc.data'
+    
+    Returns:
+        X (ndarray): n x d input matrix (without ID column)
+        y (ndarray): n x 1 label vector (0 for B, 1 for M)
+    """
+    # Load the data
+    file_path = os.path.join(dataset_folder, "wdbc.data")
+    data = np.genfromtxt(file_path, delimiter=',', dtype=str)
+    
+    # Remove ID column (first column)
+    data = data[:, 1:]
+    
+    # Convert labels: B -> 0, M -> 1
+    labels = np.where(data[:, 0] == 'B', 0, 1)
+    labels = labels[:, None]  # n x 1
+    
+    # Convert remaining features to float
+    features = data[:, 1:].astype(float)
+    
+    return features, labels
+
+#d.2
+def runBCW(dataset_folder):
+    X, y = preprocessBCW(dataset_folder)
+    n, d = X.shape
+    X = np.concatenate((np.ones((n, 1)), X), axis=1) # augment
+
+    n_runs = 100
+    train_acc = np.zeros([n_runs])
+    test_acc = np.zeros([n_runs])
+
+    np.random.seed(101245756)
+
+    for r in range(n_runs):
+        # Randomly shuffle and split 50/50
+        indices = np.random.permutation(n)
+        split = n // 2
+
+        train_idx = indices[:split]
+        test_idx = indices[split:]
+        
+        Xtrain, ytrain = X[train_idx], y[train_idx]
+        Xtest, ytest = X[test_idx], y[test_idx]
+        
+        # Train logistic regression
+        w = find_opt(logisticRegObj, logisticRegGrad, Xtrain, ytrain)
+        
+        # Evaluate training accuracy
+        ytrain_prob = sigmoid(Xtrain @ w)
+        ytrain_hat = (ytrain_prob >= 0.5).astype(float)
+        train_acc[r] = np.mean(ytrain_hat == ytrain)
+        
+        # Evaluate test accuracy
+        ytest_prob = sigmoid(Xtest @ w)
+        ytest_hat = (ytest_prob >= 0.5).astype(float)
+        test_acc[r] = np.mean(ytest_hat == ytest)
+    
+    # Average accuracies over runs
+    train_acc_avg = np.mean(train_acc)
+    test_acc_avg = np.mean(test_acc)
+    
+    return train_acc_avg, test_acc_avg
 
 
 # quick test
@@ -356,6 +611,43 @@ def main():
     print("Model      | L2 loss      | Linf loss")
     print(f"L2 model   | {avg_test_loss[0,0]:.8f} | {avg_test_loss[0,1]:.8f}")
     print(f"Linf model | {avg_test_loss[1,0]:.8f} | {avg_test_loss[1,1]:.8f}")
+
+    #question 2 tests
+    print("\n--- linearRegL2Obj and linearRegL2Grad Tests ---")
+    X = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)
+    y = np.array([[1], [2], [3]], dtype=float)
+    w = np.array([[0.1], [0.2]], dtype=float)
+
+    print("Objective value:", linearRegL2Obj(w, X, y))
+    print("Gradient:\n", linearRegL2Grad(w, X, y))
+
+    print("\n--- find_opt Test ---")
+    X = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)
+    y = np.array([[1], [2], [3]], dtype=float)
+
+    w_opt = find_opt(linearRegL2Obj, linearRegL2Grad, X, y)
+    print("Optimal w:\n", w_opt)
+
+    print("\n--- logisticRegObj and logisticRegGrad Tests ---")
+    X = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)
+    y = np.array([[0], [1], [1]], dtype=float)
+    w_init = np.zeros((X.shape[1], 1))
+
+    print("Logistic loss:", logisticRegObj(w_init, X, y))
+    print("Gradient:\n", logisticRegGrad(w_init, X, y))
+
+
+    print("\n--- Synthetic Classification Experiments ---")
+    train_acc, test_acc = synClsExperiments()
+    print("Average Training Accuracies:\n", train_acc)
+    print("Average Test Accuracies:\n", test_acc)
+
+    print("\n--- Breast Cancer Wisconsin Dataset Testing ---")
+    dataset_folder = os.path.abspath("BCW_dataset_folder")
+    train_avg, test_avg = runBCW(dataset_folder)
+    print("Average Training Accuracy:", train_avg)
+    print("Average Test Accuracy:", test_avg)
+
 
 if __name__ == "__main__":
     main()
