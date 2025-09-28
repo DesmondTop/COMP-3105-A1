@@ -6,6 +6,12 @@ import xlrd
 import scipy
 
 #question 1
+
+# Github Copilot summarized prompt for minimizeL2:
+# Write a function minimizeL2(X, y) that takes as input an n x d matrix X and an n x 1 vector y,
+# and returns the d x 1 vector w that minimizes the L2 linear regression objective ||Xw - y||^2. 
+# Use the closed-form solution w = (X^T X)^(-1) X^T y.
+
 def minimizeL2(X, y):
     """
     Solves L2 linear regression using closed-form solution:
@@ -31,6 +37,12 @@ def minimizeL2(X, y):
     w = np.linalg.solve(XtX, Xty)
     
     return w
+
+# Github Copilot summarized prompt for minimizeLinf:
+# Write a function minimizeLinf(X, y) that takes an n x d matrix X and an n x 1 vector y as arguments.
+# The function should return the d x 1 vector w that minimizes the Linf linear regression objective
+# min_w ||Xw - y||_∞
+# Use cxvopt to solve the linear progression.
 
 def minimizeLinf(X, y):
     """
@@ -88,6 +100,11 @@ def minimizeLinf(X, y):
     w_opt = u_opt[:d]
 
     return w_opt
+
+# Github Copilot summarized prompt for synRegExperiments:
+# Using the unfinished function synRegExperiments(), evaluate the performance of L2 and Linf 
+# regression on synthetic data, compute the average losses, and return a 2-by-2 training loss variable
+# and a 2-by-2 test loss variable.
 
 def synRegExperiments():
     """
@@ -154,6 +171,12 @@ def synRegExperiments():
 
     return avg_train_loss, avg_test_loss
 
+
+# Github Copilot summarized prompt for preprocessCCS:
+# Implement a function preprocessCCS(dataset_folder) that loads and preprocesses a CCS dataset.
+# The function should return the preprocessed n × d input matrix X and an n×1 label vector y
+# The return values should be usable in functions minimizeL2 and minimizeLinf.
+
 def preprocessCCS(dataset_folder=None):
     """
     Loads and preprocesses the CCS dataset without pandas.
@@ -201,6 +224,15 @@ def preprocessCCS(dataset_folder=None):
     y = data[:, -1].reshape(-1, 1)
 
     return X, y
+
+# Github Copilot summarized prompt for runCCS:
+# Using the unfinished function runCCS(dataset_folder), make the function 
+# take the absolute dataset path and return the training and test losses.
+# Randomly partition the dataset into 50% train, 50% test for 100 runs,
+# train both models, and compute the average losses.
+# Evaluate both models using both L2 and Linf losses.
+# Return the average training and test losses as 2-by-2 variables.
+
 
 def runCCS(dataset_folder=None):
     """
@@ -261,6 +293,13 @@ def runCCS(dataset_folder=None):
     avg_test_loss = np.mean(test_loss, axis=0)    # shape (2, 2)
 
     return avg_train_loss, avg_test_loss
+
+# Github Copilot summarized prompt for test_toy_regression:
+# Write a function test_toy_regression() that loads toy regression data from toy_data folder,
+# fits L2 and Linf models, and prints losses in table format.
+# The toy_data folder contains regression_train.csv and regression_test.csv files.
+
+# Note: this function took some fiddling to get right, especially the file paths.
 
 def test_toy_regression():
     """
@@ -583,8 +622,9 @@ def runBCW(dataset_folder):
     
     return train_acc_avg, test_acc_avg
 
-# quick test
+# This function main() was just made to test some of the above functions and is not essential.
 def main():
+    # Small example values for testing
     X = np.array([[1, 2], [3, 4], [5, 6]])
     y = np.array([[7], [8], [9]])
     
