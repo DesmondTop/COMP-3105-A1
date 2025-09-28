@@ -103,7 +103,6 @@ def synRegExperiments():
     avg_test_loss : numpy.ndarray
         Average testing loss for both models and metrics. Shape (2, 2).
     """
-    import numpy as np
 
     def genData(n_points, is_training=False):
         X = np.random.randn(n_points, d)  # input matrix
@@ -169,12 +168,23 @@ def preprocessCCS(dataset_folder=None):
     y : numpy.ndarray
         Target vector of shape (n, 1)
     """
-
+    
+    #gpt assistance for file loading
     # Use current directory if no folder is specified
-    if dataset_folder is None:
-        data_path = os.path.join(os.path.dirname(__file__), "Concrete_Data.xls")
-    else:
+    if dataset_folder is not None:
         data_path = os.path.join(dataset_folder, "Concrete_Data.xls")
+    else:
+        try:
+            #vscode
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        except NameError:
+            #jupyter
+            base_dir = os.getcwd()
+
+        data_path = os.path.join(base_dir, "Concrete_Data.xls")
+        if not os.path.exists(data_path):
+            data_path = os.path.join(os.path.dirname(base_dir), "Concrete_Data.xls")
+
 
     # Open the workbook and select the first sheet
     wb = xlrd.open_workbook(data_path)
@@ -206,7 +216,6 @@ def runCCS(dataset_folder=None):
     avg_test_loss : numpy.ndarray
         Average testing loss for both models and metrics. Shape (2, 2).
     """
-    import numpy as np
 
     X, y = preprocessCCS(dataset_folder)
     n, d = X.shape
@@ -444,6 +453,7 @@ def logisticRegGrad(w, X, y):
     gradient = (X.T @ (sig - y)) / n
     return gradient
 
+#c.1
 def synClsExperiments():
 
     def genData(n_points, dim1, dim2):
@@ -573,7 +583,6 @@ def runBCW(dataset_folder):
     
     return train_acc_avg, test_acc_avg
 
-
 # quick test
 def main():
     X = np.array([[1, 2], [3, 4], [5, 6]])
@@ -648,6 +657,7 @@ def main():
     print("Average Training Accuracy:", train_avg)
     print("Average Test Accuracy:", test_avg)
 
-
 if __name__ == "__main__":
     main()
+
+    
