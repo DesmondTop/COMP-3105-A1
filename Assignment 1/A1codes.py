@@ -178,7 +178,7 @@ def preprocessCCS(dataset_folder=None):
             #vscode
             base_dir = os.path.dirname(os.path.abspath(__file__))
         except NameError:
-            #jupyter
+            #colab
             base_dir = os.getcwd()
 
         data_path = os.path.join(base_dir, "Concrete_Data.xls")
